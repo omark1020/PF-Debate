@@ -123,7 +123,7 @@ FORMAT YOUR OUTPUT WITH:
   // buildSourceContext is no longer used — we now fetch full page content and pass verbatim paragraphs
 
 
-  // ===================== AI GENERATION (search → fetch pages → generate) =====================
+  // ===================== AI GENERATION (search → fetch → select → build) =====================
   async function generate(system, prompt, outputId, searchQueries) {
     showLoading();
 
@@ -149,60 +149,125 @@ FORMAT YOUR OUTPUT WITH:
         });
       }
 
-      // Step 2 — fetch actual page content for verbatim quoting
-      let paraContext = "";
+      // Step 2 — fetch actual page content
+      let pages = [];
       if (allSources.length > 0) {
-        const fetchCount = Math.min(allSources.length, 5);
+        const fetchCount = Math.min(allSources.length, 6);
         setLoadingText("Reading source articles...", `Fetching ${fetchCount} pages for real quotes`);
 
-        const urls = allSources.slice(0, 5).map(r => r.url);
+        const urls = allSources.slice(0, 6).map(r => r.url);
         const pagesRes = await fetch("/api/fetch-pages", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ urls }),
         });
         const pagesData = await pagesRes.json();
-        const pages = pagesData.pages || [];
+        pages = pagesData.pages || [];
+      }
 
-        if (pages.length > 0) {
-          paraContext = `\n\n===== REAL SOURCE PARAGRAPHS (fetched from the web) =====\nYou MUST quote from these paragraphs VERBATIM. Copy text word-for-word into your evidence cards. Do NOT make up or paraphrase quotes.\n`;
-          pages.forEach(page => {
-            const info = allSources.find(r => r.url === page.url);
-            const title = info ? info.title : "Source";
-            paraContext += `\n--- SOURCE: "${title}" | URL: ${page.url} ---\n`;
-            page.paragraphs.forEach((p, i) => {
-              paraContext += `[P${i + 1}]: ${p}\n\n`;
-            });
+      // Build paragraph dump for selection
+      let paraContext = "";
+      if (pages.length > 0) {
+        pages.forEach(page => {
+          const info = allSources.find(r => r.url === page.url);
+          const title = info ? info.title : "Source";
+          paraContext += `\n--- SOURCE: "${title}" | URL: ${page.url} ---\n`;
+          page.paragraphs.forEach((p, i) => {
+            paraContext += `[P${i + 1}]: ${p}\n\n`;
           });
-          paraContext += `===== END SOURCE PARAGRAPHS =====\nCRITICAL: Every evidence blockquote MUST be copied WORD-FOR-WORD from the paragraphs above. Pick the most relevant paragraphs and paste them exactly. Do NOT invent quotes. Use the exact URL shown for each source.`;
-        }
+        });
       }
 
-      // Append source paragraphs to the prompt
-      if (paraContext) {
-        prompt += paraContext;
-        setLoadingText("Generating with real evidence...", `This may take 60-90 seconds`);
-      } else {
+      if (!paraContext) {
+        // No pages fetched — fall back to direct generation
         setLoadingText("Generating...", "This may take 60-90 seconds");
+
+        const res = await fetch("/api/generate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ system, prompt }),
+        });
+        const data = await res.json();
+        if (!res.ok || data.error) { alert(data.error || "Generation failed."); return; }
+
+        const outputArea = document.getElementById(outputId);
+        const outputBody = document.getElementById(outputId + "-body");
+        outputBody.innerHTML = renderMarkdown(data.text);
+        outputArea.classList.remove("hidden");
+        outputArea.scrollIntoView({ behavior: "smooth", block: "start" });
+        return;
       }
 
-      // Step 3 — generate
-      const res = await fetch("/api/generate", {
+      // Step 3 — LLM selects the best paragraphs (simple task = reliable verbatim output)
+      setLoadingText("Selecting best evidence...", "AI is picking the most relevant paragraphs");
+
+      const selectSystem = `You are a debate evidence selector. You receive paragraphs extracted from real web pages.
+
+YOUR ONLY JOB: Pick the 6-10 most relevant paragraphs for the given debate topic. Output each one EXACTLY as written — word for word, zero changes.
+
+RULES:
+- Copy each paragraph EXACTLY — do not add, remove, or change a single word
+- Include the source title and URL for each selected paragraph
+- Pick paragraphs with strong data, statistics, expert claims, or clear arguments
+- Pick from DIFFERENT sources when possible
+- Do NOT add commentary, analysis, or your own text — just the selected paragraphs
+
+FORMAT (repeat for each):
+**[Source Title]**
+[exact URL]
+> [paste the EXACT paragraph word for word]
+
+---`;
+
+      const selectPrompt = `DEBATE TOPIC: ${prompt.split("\n")[0]}\n\nSelect the 6-10 best paragraphs for evidence cards from these sources:\n${paraContext}`;
+
+      const selectRes = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ system, prompt }),
+        body: JSON.stringify({ system: selectSystem, prompt: selectPrompt }),
       });
+      const selectData = await selectRes.json();
 
-      const data = await res.json();
+      if (!selectRes.ok || selectData.error) {
+        alert(selectData.error || "Evidence selection failed.");
+        return;
+      }
 
-      if (!res.ok || data.error) {
-        alert(data.error || "Generation failed. Please try again.");
+      const selectedEvidence = selectData.text;
+
+      // Step 4 — Build the case/contention using ONLY the selected paragraphs
+      setLoadingText("Building your case...", "Structuring the speech around real evidence");
+
+      const buildPrompt = prompt + `\n\n===== PRE-SELECTED EVIDENCE PARAGRAPHS =====
+The following paragraphs were selected from real web sources. You MUST use these as your evidence cards.
+
+CRITICAL RULES:
+- Each evidence blockquote (> ...) MUST be copied WORD-FOR-WORD from the paragraphs below
+- Do NOT rewrite, paraphrase, or make up ANY quote — paste exactly as shown
+- Add __underlines__ around the most impactful phrases WITHIN each verbatim paragraph
+- Use the exact URL shown for each source
+- Use as many of these paragraphs as relevant — each one becomes an evidence card
+- Your ONLY original writing should be: intro, contention titles, 1-sentence transitions, and conclusion
+- If a paragraph doesn't fit your contentions, skip it — do NOT force irrelevant evidence
+
+${selectedEvidence}
+===== END SELECTED EVIDENCE =====`;
+
+      const buildRes = await fetch("/api/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ system, prompt: buildPrompt }),
+      });
+      const buildData = await buildRes.json();
+
+      if (!buildRes.ok || buildData.error) {
+        alert(buildData.error || "Generation failed.");
         return;
       }
 
       const outputArea = document.getElementById(outputId);
       const outputBody = document.getElementById(outputId + "-body");
-      outputBody.innerHTML = renderMarkdown(data.text);
+      outputBody.innerHTML = renderMarkdown(buildData.text);
       outputArea.classList.remove("hidden");
       outputArea.scrollIntoView({ behavior: "smooth", block: "start" });
 
