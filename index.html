@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PF Debate Prep</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header>
+      <div class="header-content">
+        <div class="logo-mark">PF</div>
+        <div class="header-text">
+          <h1>Debate Prep</h1>
+          <p class="subtitle">Public Forum Case Generator</p>
+        </div>
+      </div>
+      <div id="status-bar" class="status-bar">
+        <span id="status-dot" class="status-dot"></span>
+        <span id="status-text">Checking AI engine...</span>
+      </div>
+    </header>
+
+    <nav id="main-nav">
+      <div class="nav-track">
+        <button class="nav-btn active" data-tab="generate-case">Case</button>
+        <button class="nav-btn" data-tab="generate-contention">Contention</button>
+        <button class="nav-btn" data-tab="generate-evidence">Evidence</button>
+        <button class="nav-btn" data-tab="generate-off-block">Offense</button>
+        <button class="nav-btn" data-tab="generate-def-block">Defense</button>
+      </div>
+    </nav>
+
+    <main>
+      <!-- ===================== GENERATE FULL CASE ===================== -->
+      <section id="generate-case" class="tab-content active">
+        <div class="tab-header">
+          <h2>Generate Full Constructive</h2>
+          <p class="tab-desc">Create a complete 4-minute constructive speech packed with evidence cards.</p>
+        </div>
+
+        <div class="gen-form">
+          <div class="form-row">
+            <label for="case-resolution">Resolution</label>
+            <input type="text" id="case-resolution" placeholder="Resolved: The United States should...">
+          </div>
+          <div class="form-row">
+            <label>Side</label>
+            <div class="toggle-group">
+              <button class="toggle-btn active" data-side="aff">Aff</button>
+              <button class="toggle-btn" data-side="neg">Neg</button>
+            </div>
+          </div>
+          <div class="form-row">
+            <label>Contentions</label>
+            <div class="toggle-group">
+              <button class="toggle-btn" data-ct="1">1</button>
+              <button class="toggle-btn active" data-ct="2">2</button>
+              <button class="toggle-btn" data-ct="3">3</button>
+            </div>
+          </div>
+          <div class="form-row">
+            <label for="case-instructions">Instructions <span class="hint">optional</span></label>
+            <textarea id="case-instructions" rows="2" placeholder="e.g. Focus on economic impacts, use recent sources..."></textarea>
+          </div>
+          <button id="generate-case-btn" class="btn btn-primary btn-large">Generate Case</button>
+        </div>
+
+        <div id="case-output" class="output-area hidden">
+          <div class="output-header">
+            <h3>Your Constructive</h3>
+            <button class="copy-btn btn btn-ghost" data-target="case-output-body">Copy</button>
+          </div>
+          <div id="case-output-body" class="output-body"></div>
+        </div>
+      </section>
+
+      <!-- ===================== GENERATE CONTENTION ===================== -->
+      <section id="generate-contention" class="tab-content hidden">
+        <div class="tab-header">
+          <h2>Generate Contention</h2>
+          <p class="tab-desc">Build a single contention with evidence cards, analysis, and impact.</p>
+        </div>
+
+        <div class="gen-form">
+          <div class="form-row">
+            <label for="ct-resolution">Resolution</label>
+            <input type="text" id="ct-resolution" placeholder="Resolved: The United States should...">
+          </div>
+          <div class="form-row">
+            <label>Side</label>
+            <div class="toggle-group">
+              <button class="toggle-btn active" data-side="aff">Aff</button>
+              <button class="toggle-btn" data-side="neg">Neg</button>
+            </div>
+          </div>
+          <div class="form-row">
+            <label for="ct-topic">Contention Topic</label>
+            <input type="text" id="ct-topic" placeholder="e.g. Economic growth, National security, Human rights...">
+          </div>
+          <div class="form-row">
+            <label for="ct-instructions">Instructions <span class="hint">optional</span></label>
+            <textarea id="ct-instructions" rows="2" placeholder="e.g. Focus on mortality impacts, include 3+ cards..."></textarea>
+          </div>
+          <button id="generate-ct-btn" class="btn btn-primary btn-large">Generate Contention</button>
+        </div>
+
+        <div id="ct-output" class="output-area hidden">
+          <div class="output-header">
+            <h3>Your Contention</h3>
+            <button class="copy-btn btn btn-ghost" data-target="ct-output-body">Copy</button>
+          </div>
+          <div id="ct-output-body" class="output-body"></div>
+        </div>
+      </section>
+
+      <!-- ===================== GENERATE EVIDENCE CARD ===================== -->
+      <section id="generate-evidence" class="tab-content hidden">
+        <div class="tab-header">
+          <h2>Generate Evidence Card</h2>
+          <p class="tab-desc">Create a formatted evidence card with source citation and read-aloud text.</p>
+        </div>
+
+        <div class="gen-form">
+          <div class="form-row">
+            <label for="ev-topic">Claim to Support</label>
+            <input type="text" id="ev-topic" placeholder="e.g. Trade tariffs increase consumer prices">
+          </div>
+          <div class="form-row">
+            <label for="ev-context">Context <span class="hint">optional</span></label>
+            <input type="text" id="ev-context" placeholder="e.g. Resolved: The US should reduce tariffs on Chinese goods">
+          </div>
+          <div class="form-row">
+            <label for="ev-instructions">Instructions <span class="hint">optional</span></label>
+            <textarea id="ev-instructions" rows="2" placeholder="e.g. Use 2024-2025 sources, focus on quantitative data..."></textarea>
+          </div>
+          <button id="generate-ev-btn" class="btn btn-primary btn-large">Generate Card</button>
+        </div>
+
+        <div id="ev-output" class="output-area hidden">
+          <div class="output-header">
+            <h3>Your Evidence Card</h3>
+            <button class="copy-btn btn btn-ghost" data-target="ev-output-body">Copy</button>
+          </div>
+          <div id="ev-output-body" class="output-body"></div>
+        </div>
+      </section>
+
+      <!-- ===================== OFFENSIVE BLOCK ===================== -->
+      <section id="generate-off-block" class="tab-content hidden">
+        <div class="tab-header">
+          <h2>Offensive Block</h2>
+          <p class="tab-desc">Attack your opponent's arguments with verbatim evidence from real sources.</p>
+        </div>
+
+        <div class="gen-form">
+          <div class="form-row">
+            <label for="off-resolution">Resolution</label>
+            <input type="text" id="off-resolution" placeholder="Resolved: The United States should...">
+          </div>
+          <div class="form-row">
+            <label for="off-argument">Opponent's Argument to Attack</label>
+            <textarea id="off-argument" rows="3" placeholder="e.g. The opponent argues that increasing foreign aid leads to dependency..."></textarea>
+          </div>
+          <div class="form-row">
+            <label>Your Side</label>
+            <div class="toggle-group">
+              <button class="toggle-btn active" data-side="aff">Aff</button>
+              <button class="toggle-btn" data-side="neg">Neg</button>
+            </div>
+          </div>
+          <div class="form-row">
+            <label for="off-instructions">Instructions <span class="hint">optional</span></label>
+            <textarea id="off-instructions" rows="2" placeholder="e.g. Include 3 responses, focus on empirical evidence..."></textarea>
+          </div>
+          <button id="generate-off-btn" class="btn btn-primary btn-large">Generate Offensive Block</button>
+        </div>
+
+        <div id="off-output" class="output-area hidden">
+          <div class="output-header">
+            <h3>Your Offensive Block</h3>
+            <button class="copy-btn btn btn-ghost" data-target="off-output-body">Copy</button>
+          </div>
+          <div id="off-output-body" class="output-body"></div>
+        </div>
+      </section>
+
+      <!-- ===================== DEFENSIVE BLOCK ===================== -->
+      <section id="generate-def-block" class="tab-content hidden">
+        <div class="tab-header">
+          <h2>Defensive Block</h2>
+          <p class="tab-desc">Enter your argument and the AI will predict opponent attacks, then find evidence to defend against them.</p>
+        </div>
+
+        <div class="gen-form">
+          <div class="form-row">
+            <label for="def-resolution">Resolution</label>
+            <input type="text" id="def-resolution" placeholder="Resolved: The United States should...">
+          </div>
+          <div class="form-row">
+            <label for="def-your-argument">Your Argument to Defend</label>
+            <textarea id="def-your-argument" rows="3" placeholder="e.g. Free trade reduces poverty by expanding market access for developing nations..."></textarea>
+          </div>
+          <div class="form-row">
+            <label>Your Side</label>
+            <div class="toggle-group">
+              <button class="toggle-btn active" data-side="aff">Aff</button>
+              <button class="toggle-btn" data-side="neg">Neg</button>
+            </div>
+          </div>
+          <div class="form-row">
+            <label for="def-instructions">Instructions <span class="hint">optional</span></label>
+            <textarea id="def-instructions" rows="2" placeholder="e.g. Focus on rebutting economic inequality attacks..."></textarea>
+          </div>
+          <button id="generate-def-btn" class="btn btn-primary btn-large">Generate Defensive Block</button>
+        </div>
+
+        <div id="def-output" class="output-area hidden">
+          <div class="output-header">
+            <h3>Your Defensive Block</h3>
+            <button class="copy-btn btn btn-ghost" data-target="def-output-body">Copy</button>
+          </div>
+          <div id="def-output-body" class="output-body"></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Loading overlay -->
+  <div id="loading-overlay" class="loading-overlay hidden">
+    <div class="loading-box">
+      <div class="spinner"></div>
+      <p class="loading-text">Generating...</p>
+      <p class="loading-hint">This may take 30-60 seconds</p>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+  <script src="app.js"></script>
+</body>
+</html>
