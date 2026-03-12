@@ -41,13 +41,15 @@ IMPACT RULES:
 - The impact chain should escalate to the most severe harm you can logically link
 
 EVIDENCE RULES:
-- You will be given a list of REAL sources with exact URLs found via web search
-- You MUST use ONLY the provided source URLs — copy them EXACTLY as given
-- NEVER make up or invent any URL — only use URLs from the REAL SOURCES list
-- Each evidence paragraph must be LONG (4-8 sentences) — a real cut from the article
-- The __underlined__ read-aloud parts should be the most impactful, data-driven phrases
+- You will be given REAL PARAGRAPHS extracted from real web pages
+- Every evidence blockquote MUST be a DIRECT QUOTE — copied WORD-FOR-WORD from the provided paragraphs
+- Do NOT paraphrase, rewrite, summarize, or make up any quote — paste EXACTLY as provided
+- Use the exact URL shown for each source
+- Each evidence card uses one paragraph from the sources, pasted verbatim in a > blockquote
+- The __underlined__ read-aloud parts highlight the most impactful phrases WITHIN the verbatim quote
 - You CAN underline bits and pieces scattered through the paragraph — not just one chunk
 - You can reuse the same source URL for multiple cards if relevant
+- If the provided paragraphs don't have enough relevant content, use fewer cards rather than making up quotes
 
 FORMAT YOUR OUTPUT WITH:
 - ## headings for contention titles
@@ -118,19 +120,10 @@ FORMAT YOUR OUTPUT WITH:
     }
   }
 
-  function buildSourceContext(sources) {
-    if (!sources || sources.length === 0) return "";
-
-    let ctx = `\n\n===== REAL SOURCES (found via web search) =====\nYou MUST use ONLY these exact URLs. Do NOT invent any URL.\n`;
-    sources.forEach((s, i) => {
-      ctx += `\nSource ${i + 1}:\n  Title: "${s.title}"\n  URL: ${s.url}\n  Summary: ${s.snippet}\n`;
-    });
-    ctx += `\n===== END SOURCES =====\nCRITICAL: Every evidence card MUST use one of the above URLs exactly as written. Do NOT create any new URLs. You may reuse the same source for multiple cards.`;
-    return ctx;
-  }
+  // buildSourceContext is no longer used — we now fetch full page content and pass verbatim paragraphs
 
 
-  // ===================== AI GENERATION (with multi-search) =====================
+  // ===================== AI GENERATION (search → fetch pages → generate) =====================
   async function generate(system, prompt, outputId, searchQueries) {
     showLoading();
 
@@ -140,7 +133,7 @@ FORMAT YOUR OUTPUT WITH:
         ? searchQueries
         : [searchQueries].filter(Boolean);
 
-      // Step 1 — search for real sources (run multiple searches for diversity)
+      // Step 1 — search for real sources
       let allSources = [];
       if (queries.length > 0) {
         setLoadingText("Searching for real sources...", "Finding credible evidence online");
@@ -148,7 +141,6 @@ FORMAT YOUR OUTPUT WITH:
           const results = await searchSources(q);
           allSources = allSources.concat(results);
         }
-        // Deduplicate by URL
         const seen = new Set();
         allSources = allSources.filter(s => {
           if (seen.has(s.url)) return false;
@@ -157,15 +149,44 @@ FORMAT YOUR OUTPUT WITH:
         });
       }
 
-      // Append real source context to the prompt
+      // Step 2 — fetch actual page content for verbatim quoting
+      let paraContext = "";
       if (allSources.length > 0) {
-        prompt += buildSourceContext(allSources);
-        setLoadingText("Generating with real sources...", `Found ${allSources.length} sources — this may take 60-90s`);
+        const fetchCount = Math.min(allSources.length, 5);
+        setLoadingText("Reading source articles...", `Fetching ${fetchCount} pages for real quotes`);
+
+        const urls = allSources.slice(0, 5).map(r => r.url);
+        const pagesRes = await fetch("/api/fetch-pages", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ urls }),
+        });
+        const pagesData = await pagesRes.json();
+        const pages = pagesData.pages || [];
+
+        if (pages.length > 0) {
+          paraContext = `\n\n===== REAL SOURCE PARAGRAPHS (fetched from the web) =====\nYou MUST quote from these paragraphs VERBATIM. Copy text word-for-word into your evidence cards. Do NOT make up or paraphrase quotes.\n`;
+          pages.forEach(page => {
+            const info = allSources.find(r => r.url === page.url);
+            const title = info ? info.title : "Source";
+            paraContext += `\n--- SOURCE: "${title}" | URL: ${page.url} ---\n`;
+            page.paragraphs.forEach((p, i) => {
+              paraContext += `[P${i + 1}]: ${p}\n\n`;
+            });
+          });
+          paraContext += `===== END SOURCE PARAGRAPHS =====\nCRITICAL: Every evidence blockquote MUST be copied WORD-FOR-WORD from the paragraphs above. Pick the most relevant paragraphs and paste them exactly. Do NOT invent quotes. Use the exact URL shown for each source.`;
+        }
+      }
+
+      // Append source paragraphs to the prompt
+      if (paraContext) {
+        prompt += paraContext;
+        setLoadingText("Generating with real evidence...", `This may take 60-90 seconds`);
       } else {
         setLoadingText("Generating...", "This may take 60-90 seconds");
       }
 
-      // Step 2 — generate with Ollama
+      // Step 3 — generate
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -186,7 +207,7 @@ FORMAT YOUR OUTPUT WITH:
       outputArea.scrollIntoView({ behavior: "smooth", block: "start" });
 
     } catch (err) {
-      alert("Could not reach the AI engine. Make sure Ollama is running and the server is started.");
+      alert("Could not reach the AI engine. Please check your connection and try again.");
     } finally {
       hideLoading();
     }
